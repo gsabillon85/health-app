@@ -1,4 +1,4 @@
-import { supabase } from './config.js';
+
 
 // ---- State ----
 let activeTab = 'weight';
@@ -96,7 +96,7 @@ async function saveWeight(e) {
   const date = document.getElementById('weight-date').value;
   const weight_kg = parseFloat(document.getElementById('weight-value').value);
 
-  const { error } = await supabase
+  const { error } = await supabaseClient
     .from('weight_entries')
     .upsert({ date, weight_kg }, { onConflict: 'date' });
 
@@ -111,7 +111,7 @@ async function saveWeight(e) {
 
 async function loadWeightEntries() {
   const container = document.getElementById('weight-entries');
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from('weight_entries')
     .select('*')
     .order('date', { ascending: false })
@@ -249,7 +249,7 @@ async function saveMeal(e) {
     fat: acc.fat + (item.fat_g || 0),
   }), { weight: 0, cal: 0, protein: 0, carbs: 0, fat: 0 });
 
-  const { error } = await supabase.from('meal_entries').insert({
+  const { error } = await supabaseClient.from('meal_entries').insert({
     date,
     name,
     meal_type,
@@ -275,7 +275,7 @@ async function saveMeal(e) {
 
 async function loadMealEntries() {
   const container = document.getElementById('meal-entries');
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from('meal_entries')
     .select('*')
     .order('date', { ascending: false })
@@ -326,7 +326,7 @@ async function saveExercise(e) {
   const duration_min = parseInt(document.getElementById('exercise-duration').value) || 0;
   const notes = document.getElementById('exercise-notes').value.trim();
 
-  const { error } = await supabase.from('exercise_entries').insert({
+  const { error } = await supabaseClient.from('exercise_entries').insert({
     date,
     exercise_name,
     sets,
@@ -350,7 +350,7 @@ async function saveExercise(e) {
 
 async function loadExerciseEntries() {
   const container = document.getElementById('exercise-entries');
-  const { data, error } = await supabase
+  const { data, error } = await supabaseClient
     .from('exercise_entries')
     .select('*')
     .order('date', { ascending: false })
@@ -389,7 +389,7 @@ async function loadExerciseEntries() {
 // ============================================================
 async function deleteEntry(table, id) {
   if (!confirm('Delete this entry?')) return;
-  const { error } = await supabase.from(table).delete().eq('id', id);
+  const { error } = await supabaseClient.from(table).delete().eq('id', id);
   if (error) {
     showToast('Error deleting');
     return;
