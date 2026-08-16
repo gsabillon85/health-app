@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#1a1a2e">
+  <title>Health Tracker</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>Health Tracker</h1>
+    </header>
+
+    <main>
+      <!-- Weight Tab -->
+      <section id="tab-weight" class="tab-content active">
+        <div class="tab-header">
+          <h2>Weight</h2>
+        </div>
+        <form id="weight-form" class="card">
+          <label for="weight-date">Date</label>
+          <input type="date" id="weight-date" required>
+          <label for="weight-value">Weight (kg)</label>
+          <input type="number" id="weight-value" step="0.1" min="20" max="300" placeholder="75.5" required>
+          <button type="submit" class="btn-primary">Save</button>
+        </form>
+        <div id="weight-entries" class="entries-list"></div>
+      </section>
+
+      <!-- Meals Tab -->
+      <section id="tab-meals" class="tab-content">
+        <div class="tab-header">
+          <h2>Meals & Snacks</h2>
+        </div>
+        <form id="meal-form" class="card">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="meal-date">Date</label>
+              <input type="date" id="meal-date" required>
+            </div>
+            <div class="form-group">
+              <label for="meal-type">Type</label>
+              <select id="meal-type" required>
+                <option value="meal">Meal</option>
+                <option value="snack">Snack</option>
+              </select>
+            </div>
+          </div>
+          <label for="meal-name">Name</label>
+          <input type="text" id="meal-name" placeholder="e.g. Lunch, Protein bar" required>
+
+          <div class="food-items-section">
+            <div class="section-label">
+              <span>Food Items</span>
+              <button type="button" id="add-food-item" class="btn-small">+ Add Item</button>
+            </div>
+            <div id="food-items-list"></div>
+            <div id="meal-totals" class="totals hidden">
+              <span>Total: <strong id="total-weight">0g</strong></span>
+              <span><strong id="total-cal">0</strong> kcal</span>
+              <span>P: <strong id="total-protein">0</strong>g</span>
+              <span>C: <strong id="total-carbs">0</strong>g</span>
+              <span>F: <strong id="total-fat">0</strong>g</span>
+            </div>
+          </div>
+          <button type="submit" class="btn-primary">Save Meal</button>
+        </form>
+        <div id="meal-entries" class="entries-list"></div>
+      </section>
+
+      <!-- Exercises Tab -->
+      <section id="tab-exercises" class="tab-content">
+        <div class="tab-header">
+          <h2>Exercises</h2>
+        </div>
+        <form id="exercise-form" class="card">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="exercise-date">Date</label>
+              <input type="date" id="exercise-date" required>
+            </div>
+            <div class="form-group">
+              <label for="exercise-name">Exercise</label>
+              <input type="text" id="exercise-name" placeholder="e.g. Bench Press" required>
+            </div>
+          </div>
+          <div class="form-row form-row-3">
+            <div class="form-group">
+              <label for="exercise-sets">Sets</label>
+              <input type="number" id="exercise-sets" min="1" value="3">
+            </div>
+            <div class="form-group">
+              <label for="exercise-reps">Reps</label>
+              <input type="number" id="exercise-reps" min="1" value="10">
+            </div>
+            <div class="form-group">
+              <label for="exercise-weight">Weight (kg)</label>
+              <input type="number" id="exercise-weight" step="0.5" min="0" value="0">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="exercise-duration">Duration (min)</label>
+              <input type="number" id="exercise-duration" min="0" value="0">
+            </div>
+            <div class="form-group flex-grow">
+              <label for="exercise-notes">Notes</label>
+              <input type="text" id="exercise-notes" placeholder="Optional notes">
+            </div>
+          </div>
+          <button type="submit" class="btn-primary">Save Exercise</button>
+        </form>
+        <div id="exercise-entries" class="entries-list"></div>
+      </section>
+    </main>
+
+    <!-- Tab Bar -->
+    <nav class="tab-bar">
+      <button class="tab-btn active" data-tab="weight">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a4 4 0 0 0-4 4c0 1.5.8 2.8 2 3.5L6 21h12l-4-10.5c1.2-.7 2-2 2-3.5a4 4 0 0 0-4-4z"/></svg>
+        <span>Weight</span>
+      </button>
+      <button class="tab-btn" data-tab="meals">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11h18M5 11V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v5M4 11v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/></svg>
+        <span>Meals</span>
+      </button>
+      <button class="tab-btn" data-tab="exercises">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6.5 6.5h11M6.5 17.5h11M4 12h2m12 0h2M7 6.5V4m0 17v-2.5M17 6.5V4m0 17v-2.5M7 12h10"/></svg>
+        <span>Exercises</span>
+      </button>
+    </nav>
+  </div>
+
+  <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>
