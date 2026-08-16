@@ -134,8 +134,240 @@
     </nav>
   </div>
 
- <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="/js/config.js"></script>
-  <script src="/js/app.js"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    const SUPABASE_URL = 'https://mdqrqjoyzprwphyvsnxd.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kcXJxam95enByd3BoeXZzbnhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY5MTQ2NzgsImV4cCI6MjEwMjQ5MDY3OH0.ymb2ngqSii8O5Kg1Z0kNrp7C4ic2o25KZEIXunU8cv8';
+    const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let activeTab = 'weight';
+    let currentFoodItems = [];
+
+    function todayStr() { return new Date().toISOString().slice(0, 10); }
+    function formatDate(d) { return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); }
+    function showToast(msg) {
+      const t = document.createElement('div');
+      t.className = 'toast';
+      t.textContent = msg;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 2000);
+    }
+
+    function groupByDate(entries) {
+      const g = {};
+      entries.forEach(e => { if (!g[e.date]) g[e.date] = []; g[e.date].push(e); });
+      return g;
+    }
+
+    function renderEntries(container, entries, fn) {
+      const groups = groupByDate(entries);
+      const dates = Object.keys(groups).sort().reverse();
+      if (!dates.length) { container.innerHTML = '<div class="empty-state">No entries yet</div>'; return; }
+      let html = '';
+      dates.forEach(date => {
+        html += '<div class="date-group-header">' + formatDate(date) + '</div>';
+        groups[date].forEach(entry => { html += fn(entry); });
+      });
+      container.innerHTML = html;
+    }
+
+    // TABS
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeTab = btn.dataset.tab;
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.getElementById('tab-' + activeTab).classList.add('active');
+        loadEntries();
+      });
+    });
+
+    function loadEntries() {
+      if (activeTab === 'weight') loadWeight();
+      else if (activeTab === 'meals') loadMeals();
+      else if (activeTab === 'exercises') loadExercises();
+    }
+
+    // WEIGHT
+    document.getElementById('weight-date').value = todayStr();
+    document.getElementById('weight-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const date = document.getElementById('weight-date').value;
+      const weight_kg = parseFloat(document.getElementById('weight-value').value);
+      const { error } = await db.from('weight_entries').upsert({ date, weight_kg }, { onConflict: 'date' });
+      if (error) { showToast('Error: ' + error.message); return; }
+      showToast('Weight saved!');
+      document.getElementById('weight-value').value = '';
+      loadWeight();
+    });
+
+    async function loadWeight() {
+      const container = document.getElementById('weight-entries');
+      const { data, error } = await db.from('weight_entries').select('*').order('date', { ascending: false }).limit(30);
+      if (error) { container.innerHTML = '<div class="empty-state">Error loading data</div>'; return; }
+      renderEntries(container, data || [], entry =>
+        '<div class="entry-card"><div class="entry-info"><div class="entry-main">' + entry.weight_kg + ' kg</div></div><button class="entry-delete" data-id="' + entry.id + '">&times;</button></div>'
+      );
+      container.querySelectorAll('.entry-delete').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Delete?')) return;
+          await db.from('weight_entries').delete().eq('id', btn.dataset.id);
+          showToast('Deleted');
+          loadWeight();
+        });
+      });
+    }
+
+    // MEALS
+    document.getElementById('meal-date').value = todayStr();
+    document.getElementById('add-food-item').addEventListener('click', () => {
+      currentFoodItems.push({ name: '', weight_g: 0, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 });
+      renderFoodItems();
+    });
+
+    function renderFoodItems() {
+      const container = document.getElementById('food-items-list');
+      container.innerHTML = currentFoodItems.map((item, i) =>
+        '<div class="food-item">' +
+          '<div class="food-item-header">' +
+            '<input type="text" placeholder="Food name" data-field="name" data-index="' + i + '" value="' + item.name + '">' +
+            '<button type="button" class="remove-food" data-index="' + i + '">&times;</button>' +
+          '</div>' +
+          '<div class="food-item-grid">' +
+            '<div><label>g</label><input type="number" data-field="weight_g" data-index="' + i + '" value="' + (item.weight_g || '') + '" placeholder="0"></div>' +
+            '<div><label>kcal</label><input type="number" data-field="calories" data-index="' + i + '" value="' + (item.calories || '') + '" placeholder="0"></div>' +
+            '<div><label>Protein</label><input type="number" data-field="protein_g" data-index="' + i + '" value="' + (item.protein_g || '') + '" placeholder="0"></div>' +
+            '<div><label>Carbs</label><input type="number" data-field="carbs_g" data-index="' + i + '" value="' + (item.carbs_g || '') + '" placeholder="0"></div>' +
+          '</div>' +
+          '<div class="food-item-grid" style="margin-top:6px;">' +
+            '<div><label>Fat</label><input type="number" data-field="fat_g" data-index="' + i + '" value="' + (item.fat_g || '') + '" placeholder="0"></div>' +
+          '</div>' +
+        '</div>'
+      ).join('');
+
+      container.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', (e) => {
+          const idx = parseInt(e.target.dataset.index);
+          const field = e.target.dataset.field;
+          currentFoodItems[idx][field] = field === 'name' ? e.target.value : (parseFloat(e.target.value) || 0);
+          updateTotals();
+        });
+      });
+      container.querySelectorAll('.remove-food').forEach(btn => {
+        btn.addEventListener('click', () => {
+          currentFoodItems.splice(parseInt(btn.dataset.index), 1);
+          renderFoodItems();
+          updateTotals();
+        });
+      });
+    }
+
+    function updateTotals() {
+      const el = document.getElementById('meal-totals');
+      if (!currentFoodItems.length) { el.classList.add('hidden'); return; }
+      el.classList.remove('hidden');
+      const t = currentFoodItems.reduce((a, i) => ({
+        w: a.w + (i.weight_g || 0), c: a.c + (i.calories || 0),
+        p: a.p + (i.protein_g || 0), cb: a.cb + (i.carbs_g || 0), f: a.f + (i.fat_g || 0)
+      }), { w: 0, c: 0, p: 0, cb: 0, f: 0 });
+      document.getElementById('total-weight').textContent = t.w + 'g';
+      document.getElementById('total-cal').textContent = t.c;
+      document.getElementById('total-protein').textContent = t.p;
+      document.getElementById('total-carbs').textContent = t.cb;
+      document.getElementById('total-fat').textContent = t.f;
+    }
+
+    document.getElementById('meal-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      if (!currentFoodItems.length) { showToast('Add at least one food item'); return; }
+      const date = document.getElementById('meal-date').value;
+      const name = document.getElementById('meal-name').value.trim();
+      const meal_type = document.getElementById('meal-type').value;
+      const t = currentFoodItems.reduce((a, i) => ({
+        w: a.w + (i.weight_g || 0), c: a.c + (i.calories || 0),
+        p: a.p + (i.protein_g || 0), cb: a.cb + (i.carbs_g || 0), f: a.f + (i.fat_g || 0)
+      }), { w: 0, c: 0, p: 0, cb: 0, f: 0 });
+      const { error } = await db.from('meal_entries').insert({
+        date, name, meal_type, food_items: currentFoodItems,
+        total_weight_g: t.w, total_calories: t.c, total_protein_g: t.p, total_carbs_g: t.cb, total_fat_g: t.f
+      });
+      if (error) { showToast('Error: ' + error.message); return; }
+      showToast('Meal saved!');
+      currentFoodItems = [];
+      renderFoodItems();
+      document.getElementById('meal-name').value = '';
+      document.getElementById('meal-totals').classList.add('hidden');
+      loadMeals();
+    });
+
+    async function loadMeals() {
+      const container = document.getElementById('meal-entries');
+      const { data, error } = await db.from('meal_entries').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }).limit(30);
+      if (error) { container.innerHTML = '<div class="empty-state">Error loading data</div>'; return; }
+      renderEntries(container, data || [], entry =>
+        '<div class="entry-card"><div class="entry-info"><div class="entry-main">' + entry.name + '</div>' +
+        '<div class="entry-detail">' + Math.round(entry.total_calories) + ' kcal · P: ' + Math.round(entry.total_protein_g) + 'g · C: ' + Math.round(entry.total_carbs_g) + 'g · F: ' + Math.round(entry.total_fat_g) + 'g</div></div>' +
+        '<button class="entry-delete" data-id="' + entry.id + '">&times;</button></div>'
+      );
+      container.querySelectorAll('.entry-delete').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Delete?')) return;
+          await db.from('meal_entries').delete().eq('id', btn.dataset.id);
+          showToast('Deleted');
+          loadMeals();
+        });
+      });
+    }
+
+    // EXERCISES
+    document.getElementById('exercise-date').value = todayStr();
+    document.getElementById('exercise-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const { error } = await db.from('exercise_entries').insert({
+        date: document.getElementById('exercise-date').value,
+        exercise_name: document.getElementById('exercise-name').value.trim(),
+        sets: parseInt(document.getElementById('exercise-sets').value) || 1,
+        reps: parseInt(document.getElementById('exercise-reps').value) || 1,
+        weight_kg: parseFloat(document.getElementById('exercise-weight').value) || 0,
+        duration_min: parseInt(document.getElementById('exercise-duration').value) || 0,
+        notes: document.getElementById('exercise-notes').value.trim()
+      });
+      if (error) { showToast('Error: ' + error.message); return; }
+      showToast('Exercise saved!');
+      document.getElementById('exercise-name').value = '';
+      document.getElementById('exercise-notes').value = '';
+      document.getElementById('exercise-weight').value = '0';
+      document.getElementById('exercise-duration').value = '0';
+      loadExercises();
+    });
+
+    async function loadExercises() {
+      const container = document.getElementById('exercise-entries');
+      const { data, error } = await db.from('exercise_entries').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }).limit(50);
+      if (error) { container.innerHTML = '<div class="empty-state">Error loading data</div>'; return; }
+      renderEntries(container, data || [], entry => {
+        const d = [];
+        if (entry.sets > 1 || entry.reps > 1) d.push(entry.sets + 'x' + entry.reps);
+        if (entry.weight_kg > 0) d.push(entry.weight_kg + ' kg');
+        if (entry.duration_min > 0) d.push(entry.duration_min + ' min');
+        if (entry.notes) d.push(entry.notes);
+        return '<div class="entry-card"><div class="entry-info"><div class="entry-main">' + entry.exercise_name + '</div>' +
+          '<div class="entry-detail">' + d.join(' · ') + '</div></div>' +
+          '<button class="entry-delete" data-id="' + entry.id + '">&times;</button></div>';
+      });
+      container.querySelectorAll('.entry-delete').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          if (!confirm('Delete?')) return;
+          await db.from('exercise_entries').delete().eq('id', btn.dataset.id);
+          showToast('Deleted');
+          loadExercises();
+        });
+      });
+    }
+
+    // Initial load
+    loadWeight();
+  </script>
 </body>
 </html>
