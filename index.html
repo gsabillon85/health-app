@@ -87,30 +87,23 @@
               <input type="text" id="exercise-name" placeholder="e.g. Bench Press" required>
             </div>
           </div>
-          <div class="form-row form-row-3">
-            <div class="form-group">
-              <label for="exercise-sets">Sets</label>
-              <input type="number" id="exercise-sets" min="1" value="3">
+
+          <div class="food-items-section">
+            <div class="section-label">
+              <span>Sets</span>
+              <button type="button" id="add-set" class="btn-small">+ Add Set</button>
             </div>
-            <div class="form-group">
-              <label for="exercise-reps">Reps</label>
-              <input type="number" id="exercise-reps" min="1" value="10">
-            </div>
-            <div class="form-group">
-              <label for="exercise-weight">Weight (kg)</label>
-              <input type="number" id="exercise-weight" step="0.5" min="0" value="0">
-            </div>
+            <div id="sets-list"></div>
           </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label for="exercise-duration">Duration (min)</label>
-              <input type="number" id="exercise-duration" min="0" value="0">
-            </div>
-            <div class="form-group flex-grow">
-              <label for="exercise-notes">Notes</label>
-              <input type="text" id="exercise-notes" placeholder="Optional notes">
-            </div>
-          </div>
+
+          <label for="exercise-notes">Notes</label>
+          <input type="text" id="exercise-notes" placeholder="Optional notes">
+          <datalist id="weight-units">
+            <option value="kg"></option>
+            <option value="lb"></option>
+            <option value="rings"></option>
+            <option value="medicine balls"></option>
+          </datalist>
           <button type="submit" class="btn-primary">Save Exercise</button>
         </form>
         <div id="exercise-entries" class="entries-list"></div>
@@ -321,44 +314,117 @@
     }
 
     // EXERCISES
+    function esc(str) {
+      return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    }
+
+    function newSet() {
+      // Copy the previous set's values so repeated sets are quick to enter
+      const last = currentSets[currentSets.length - 1];
+      return last ? { ...last } : { weight_amount: null, weight_unit: 'kg', reps: null, duration_sec: null };
+    }
+
+    let currentSets = [newSet()];
+
     document.getElementById('exercise-date').value = todayStr();
+    document.getElementById('add-set').addEventListener('click', () => {
+      currentSets.push(newSet());
+      renderSets();
+    });
+
+    function renderSets() {
+      const container = document.getElementById('sets-list');
+      const val = v => v === null || v === undefined ? '' : esc(v);
+      container.innerHTML = currentSets.map((set, i) =>
+        '<div class="food-item">' +
+          '<div class="food-item-header">' +
+            '<span class="set-number">Set ' + (i + 1) + '</span>' +
+            '<button type="button" class="remove-food" data-index="' + i + '">&times;</button>' +
+          '</div>' +
+          '<div class="food-item-grid">' +
+            '<div><label>Amount</label><input type="number" step="any" min="0" data-field="weight_amount" data-index="' + i + '" value="' + val(set.weight_amount) + '" placeholder="0"></div>' +
+            '<div><label>Unit</label><input type="text" list="weight-units" data-field="weight_unit" data-index="' + i + '" value="' + val(set.weight_unit) + '" placeholder="kg"></div>' +
+            '<div><label>Reps</label><input type="number" min="0" data-field="reps" data-index="' + i + '" value="' + val(set.reps) + '" placeholder="0"></div>' +
+            '<div><label>Sec</label><input type="number" min="0" data-field="duration_sec" data-index="' + i + '" value="' + val(set.duration_sec) + '" placeholder="opt."></div>' +
+          '</div>' +
+        '</div>'
+      ).join('');
+
+      container.querySelectorAll('input').forEach(input => {
+        input.addEventListener('input', (e) => {
+          const idx = parseInt(e.target.dataset.index);
+          const field = e.target.dataset.field;
+          const v = e.target.value.trim();
+          currentSets[idx][field] = field === 'weight_unit' ? v : (v === '' ? null : parseFloat(v));
+        });
+      });
+      container.querySelectorAll('.remove-food').forEach(btn => {
+        btn.addEventListener('click', () => {
+          currentSets.splice(parseInt(btn.dataset.index), 1);
+          renderSets();
+        });
+      });
+    }
+    renderSets();
+
     document.getElementById('exercise-form').addEventListener('submit', async function(e) {
       e.preventDefault();
-      const { error } = await db.from('exercise_entries').insert({
+      if (!currentSets.length) { showToast('Add at least one set'); return; }
+      const { data: exercise, error } = await db.from('exercise_entries').insert({
         date: document.getElementById('exercise-date').value,
         exercise_name: document.getElementById('exercise-name').value.trim(),
-        sets: parseInt(document.getElementById('exercise-sets').value) || 1,
-        reps: parseInt(document.getElementById('exercise-reps').value) || 1,
-        weight_kg: parseFloat(document.getElementById('exercise-weight').value) || 0,
-        duration_min: parseInt(document.getElementById('exercise-duration').value) || 0,
         notes: document.getElementById('exercise-notes').value.trim()
-      });
+      }).select().single();
       if (error) { showToast('Error: ' + error.message); return; }
+
+      const { error: setsError } = await db.from('exercise_sets').insert(currentSets.map((set, i) => ({
+        exercise_id: exercise.id,
+        set_number: i + 1,
+        weight_amount: set.weight_amount,
+        weight_unit: set.weight_amount === null ? null : (set.weight_unit || 'kg'),
+        reps: set.reps === null ? null : Math.round(set.reps),
+        duration_sec: set.duration_sec === null ? null : Math.round(set.duration_sec)
+      })));
+      if (setsError) {
+        // Don't leave an exercise without its sets
+        await db.from('exercise_entries').delete().eq('id', exercise.id);
+        showToast('Error: ' + setsError.message);
+        return;
+      }
+
       showToast('Exercise saved!');
       document.getElementById('exercise-name').value = '';
       document.getElementById('exercise-notes').value = '';
-      document.getElementById('exercise-weight').value = '0';
-      document.getElementById('exercise-duration').value = '0';
+      currentSets = [];  // empty first so newSet() starts blank instead of copying
+      currentSets = [newSet()];
+      renderSets();
       loadExercises();
     });
 
+    function formatSet(set) {
+      const parts = [];
+      if (set.weight_amount !== null) parts.push(Number(set.weight_amount) + ' ' + (set.weight_unit || ''));
+      if (set.reps !== null) parts.push((parts.length ? '× ' : '') + set.reps + ' reps');
+      if (set.duration_sec !== null) parts.push(set.duration_sec + 's');
+      return parts.join(' ') || '—';
+    }
+
     async function loadExercises() {
       const container = document.getElementById('exercise-entries');
-      const { data, error } = await db.from('exercise_entries').select('*').order('date', { ascending: false }).order('created_at', { ascending: false }).limit(50);
+      const { data, error } = await db.from('exercise_entries').select('*, exercise_sets(*)').order('date', { ascending: false }).order('created_at', { ascending: false }).limit(50);
       if (error) { container.innerHTML = '<div class="empty-state">Error loading data</div>'; return; }
       renderEntries(container, data || [], entry => {
-        const d = [];
-        if (entry.sets > 1 || entry.reps > 1) d.push(entry.sets + 'x' + entry.reps);
-        if (entry.weight_kg > 0) d.push(entry.weight_kg + ' kg');
-        if (entry.duration_min > 0) d.push(entry.duration_min + ' min');
-        if (entry.notes) d.push(entry.notes);
-        return '<div class="entry-card"><div class="entry-info"><div class="entry-main">' + entry.exercise_name + '</div>' +
-          '<div class="entry-detail">' + d.join(' · ') + '</div></div>' +
+        const sets = (entry.exercise_sets || []).sort((a, b) => a.set_number - b.set_number);
+        const setLines = sets.map(set => '<div class="entry-detail">' + set.set_number + '. ' + esc(formatSet(set)) + '</div>').join('');
+        const notes = entry.notes ? '<div class="entry-detail entry-notes">' + esc(entry.notes) + '</div>' : '';
+        return '<div class="entry-card"><div class="entry-info"><div class="entry-main">' + esc(entry.exercise_name) + '</div>' +
+          setLines + notes + '</div>' +
           '<button class="entry-delete" data-id="' + entry.id + '">&times;</button></div>';
       });
       container.querySelectorAll('.entry-delete').forEach(btn => {
         btn.addEventListener('click', async () => {
           if (!confirm('Delete?')) return;
+          // Sets are removed by ON DELETE CASCADE
           await db.from('exercise_entries').delete().eq('id', btn.dataset.id);
           showToast('Deleted');
           loadExercises();
