@@ -1,13 +1,23 @@
 -- Health App Schema for Supabase
 -- Run this in the Supabase SQL Editor
 
--- Weight tracking
-CREATE TABLE weight_entries (
+-- Body measurements (several per day allowed). Circumferences in cm, measured
+-- at: calf, quadricep, upper arm (bicep/tricep), stomach at the belly button,
+-- chest at nipple height.
+CREATE TABLE measurement_entries (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   date DATE NOT NULL DEFAULT CURRENT_DATE,
+  time TIME,
   weight_kg NUMERIC(5,2) NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(date)
+  calf_left_cm NUMERIC(5,1),
+  calf_right_cm NUMERIC(5,1),
+  quad_left_cm NUMERIC(5,1),
+  quad_right_cm NUMERIC(5,1),
+  arm_left_cm NUMERIC(5,1),
+  arm_right_cm NUMERIC(5,1),
+  stomach_cm NUMERIC(5,1),
+  chest_cm NUMERIC(5,1),
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Meal tracking
@@ -48,19 +58,19 @@ CREATE TABLE exercise_sets (
 );
 
 -- Enable RLS (Row Level Security) - open access for single-user app
-ALTER TABLE weight_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE measurement_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE meal_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE exercise_entries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE exercise_sets ENABLE ROW LEVEL SECURITY;
 
 -- Permissive policies (no auth required - personal app)
-CREATE POLICY "Allow all on weight_entries" ON weight_entries FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all on measurement_entries" ON measurement_entries FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on meal_entries" ON meal_entries FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on exercise_entries" ON exercise_entries FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all on exercise_sets" ON exercise_sets FOR ALL USING (true) WITH CHECK (true);
 
 -- Indexes for date-based queries
-CREATE INDEX idx_weight_date ON weight_entries(date DESC);
+CREATE INDEX idx_measurements_date ON measurement_entries(date DESC);
 CREATE INDEX idx_meals_date ON meal_entries(date DESC);
 CREATE INDEX idx_exercises_date ON exercise_entries(date DESC);
 CREATE INDEX idx_exercise_sets_exercise ON exercise_sets(exercise_id);

@@ -170,6 +170,10 @@ input::-webkit-inner-spin-button {
   gap: 10px;
 }
 
+.form-row + .form-row {
+  margin-top: 8px;
+}
+
 .form-row-3 {
   grid-template-columns: 1fr 1fr 1fr;
 }
@@ -421,4 +425,11 @@ input::-webkit-inner-spin-button {
 .entry-card .entry-notes {
   font-style: italic;
   margin-top: 2px;
+}
+
+.entry-card .entry-time {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--text-dim);
+  margin-left: 6px;
 }

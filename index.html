@@ -15,19 +15,71 @@
     </header>
 
     <main>
-      <!-- Weight Tab -->
-      <section id="tab-weight" class="tab-content active">
+      <!-- Measurements Tab -->
+      <section id="tab-measurements" class="tab-content active">
         <div class="tab-header">
-          <h2>Weight</h2>
+          <h2>Measurements</h2>
         </div>
-        <form id="weight-form" class="card">
-          <label for="weight-date">Date</label>
-          <input type="date" id="weight-date" required>
-          <label for="weight-value">Weight (kg)</label>
-          <input type="number" id="weight-value" step="0.1" min="20" max="300" placeholder="75.5" required>
-          <button type="submit" class="btn-primary">Save</button>
+        <form id="measurement-form" class="card">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="m-date">Date</label>
+              <input type="date" id="m-date" required>
+            </div>
+            <div class="form-group">
+              <label for="m-time">Time</label>
+              <input type="time" id="m-time" required>
+            </div>
+          </div>
+          <label for="m-weight">Weight (kg)</label>
+          <input type="number" id="m-weight" step="0.1" min="20" max="300" placeholder="75.5" required>
+
+          <div class="food-items-section">
+            <div class="section-label"><span>Circumference (cm)</span></div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="m-calf-left">Calf L</label>
+              <input type="number" id="m-calf-left" step="0.1" min="5" max="250" required>
+            </div>
+            <div class="form-group">
+              <label for="m-calf-right">Calf R</label>
+              <input type="number" id="m-calf-right" step="0.1" min="5" max="250" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="m-quad-left">Quadricep L</label>
+              <input type="number" id="m-quad-left" step="0.1" min="5" max="250" required>
+            </div>
+            <div class="form-group">
+              <label for="m-quad-right">Quadricep R</label>
+              <input type="number" id="m-quad-right" step="0.1" min="5" max="250" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="m-arm-left">Bicep/Tricep L</label>
+              <input type="number" id="m-arm-left" step="0.1" min="5" max="250" required>
+            </div>
+            <div class="form-group">
+              <label for="m-arm-right">Bicep/Tricep R</label>
+              <input type="number" id="m-arm-right" step="0.1" min="5" max="250" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="m-stomach">Stomach (belly button)</label>
+              <input type="number" id="m-stomach" step="0.1" min="20" max="250" required>
+            </div>
+            <div class="form-group">
+              <label for="m-chest">Chest (nipple height)</label>
+              <input type="number" id="m-chest" step="0.1" min="20" max="250" required>
+            </div>
+          </div>
+          </div>
+          <button type="submit" class="btn-primary">Save Measurements</button>
         </form>
-        <div id="weight-entries" class="entries-list"></div>
+        <div id="measurement-entries" class="entries-list"></div>
       </section>
 
       <!-- Meals Tab -->
@@ -112,9 +164,9 @@
 
     <!-- Tab Bar -->
     <nav class="tab-bar">
-      <button class="tab-btn active" data-tab="weight">
+      <button class="tab-btn active" data-tab="measurements">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a4 4 0 0 0-4 4c0 1.5.8 2.8 2 3.5L6 21h12l-4-10.5c1.2-.7 2-2 2-3.5a4 4 0 0 0-4-4z"/></svg>
-        <span>Weight</span>
+        <span>Measure</span>
       </button>
       <button class="tab-btn" data-tab="meals">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11h18M5 11V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v5M4 11v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/></svg>
@@ -133,10 +185,12 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1kcXJxam95enByd3BoeXZzbnhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY5MTQ2NzgsImV4cCI6MjEwMjQ5MDY3OH0.ymb2ngqSii8O5Kg1Z0kNrp7C4ic2o25KZEIXunU8cv8';
     const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    let activeTab = 'weight';
+    let activeTab = 'measurements';
     let currentFoodItems = [];
 
-    function todayStr() { return new Date().toISOString().slice(0, 10); }
+    // Local date/time (toISOString() is UTC, which gives tomorrow's date in the evening)
+    function todayStr() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    function nowTimeStr() { return new Date().toTimeString().slice(0, 5); }
     function formatDate(d) { return new Date(d + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); }
     function showToast(msg) {
       const t = document.createElement('div');
@@ -177,37 +231,66 @@
     });
 
     function loadEntries() {
-      if (activeTab === 'weight') loadWeight();
+      if (activeTab === 'measurements') loadMeasurements();
       else if (activeTab === 'meals') loadMeals();
       else if (activeTab === 'exercises') loadExercises();
     }
 
-    // WEIGHT
-    document.getElementById('weight-date').value = todayStr();
-    document.getElementById('weight-form').addEventListener('submit', async function(e) {
+    // MEASUREMENTS
+    const MEASUREMENT_FIELDS = {
+      weight_kg: 'm-weight',
+      calf_left_cm: 'm-calf-left', calf_right_cm: 'm-calf-right',
+      quad_left_cm: 'm-quad-left', quad_right_cm: 'm-quad-right',
+      arm_left_cm: 'm-arm-left', arm_right_cm: 'm-arm-right',
+      stomach_cm: 'm-stomach', chest_cm: 'm-chest'
+    };
+
+    function resetMeasurementForm() {
+      document.getElementById('m-date').value = todayStr();
+      document.getElementById('m-time').value = nowTimeStr();
+      Object.values(MEASUREMENT_FIELDS).forEach(id => { document.getElementById(id).value = ''; });
+    }
+    resetMeasurementForm();
+
+    document.getElementById('measurement-form').addEventListener('submit', async function(e) {
       e.preventDefault();
-      const date = document.getElementById('weight-date').value;
-      const weight_kg = parseFloat(document.getElementById('weight-value').value);
-      const { error } = await db.from('weight_entries').upsert({ date, weight_kg }, { onConflict: 'date' });
+      const row = {
+        date: document.getElementById('m-date').value,
+        time: document.getElementById('m-time').value
+      };
+      for (const [col, id] of Object.entries(MEASUREMENT_FIELDS)) row[col] = parseFloat(document.getElementById(id).value);
+      const { error } = await db.from('measurement_entries').insert(row);
       if (error) { showToast('Error: ' + error.message); return; }
-      showToast('Weight saved!');
-      document.getElementById('weight-value').value = '';
-      loadWeight();
+      showToast('Measurements saved!');
+      resetMeasurementForm();
+      loadMeasurements();
     });
 
-    async function loadWeight() {
-      const container = document.getElementById('weight-entries');
-      const { data, error } = await db.from('weight_entries').select('*').order('date', { ascending: false }).limit(30);
+    async function loadMeasurements() {
+      const container = document.getElementById('measurement-entries');
+      const { data, error } = await db.from('measurement_entries').select('*')
+        .order('date', { ascending: false }).order('time', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false }).limit(30);
       if (error) { container.innerHTML = '<div class="empty-state">Error loading data</div>'; return; }
-      renderEntries(container, data || [], entry =>
-        '<div class="entry-card"><div class="entry-info"><div class="entry-main">' + entry.weight_kg + ' kg</div></div><button class="entry-delete" data-id="' + entry.id + '">&times;</button></div>'
-      );
+      const n = v => Number(v);
+      const lr = (label, l, r) => l === null || r === null ? null : label + ' ' + n(l) + ' / ' + n(r);
+      renderEntries(container, data || [], entry => {
+        // Entries from before the switch to measurements only have weight
+        const details = [
+          [entry.chest_cm === null ? null : 'Chest ' + n(entry.chest_cm), entry.stomach_cm === null ? null : 'Stomach ' + n(entry.stomach_cm)],
+          [lr('Arms L/R', entry.arm_left_cm, entry.arm_right_cm)],
+          [lr('Quads L/R', entry.quad_left_cm, entry.quad_right_cm), lr('Calves L/R', entry.calf_left_cm, entry.calf_right_cm)]
+        ].map(line => line.filter(Boolean).join(' · ')).filter(Boolean)
+          .map(line => '<div class="entry-detail">' + line + '</div>').join('');
+        const time = entry.time ? ' <span class="entry-time">' + entry.time.slice(0, 5) + '</span>' : '';
+        return '<div class="entry-card"><div class="entry-info"><div class="entry-main">' + n(entry.weight_kg) + ' kg' + time + '</div>' +
+          details + '</div><button class="entry-delete" data-id="' + entry.id + '">&times;</button></div>';
+      });
       container.querySelectorAll('.entry-delete').forEach(btn => {
         btn.addEventListener('click', async () => {
           if (!confirm('Delete?')) return;
-          await db.from('weight_entries').delete().eq('id', btn.dataset.id);
+          await db.from('measurement_entries').delete().eq('id', btn.dataset.id);
           showToast('Deleted');
-          loadWeight();
+          loadMeasurements();
         });
       });
     }
@@ -435,7 +518,7 @@
     }
 
     // Initial load
-    loadWeight();
+    loadMeasurements();
   </script>
 </body>
 </html>
