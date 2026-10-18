@@ -318,13 +318,15 @@
       return String(str).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     }
 
+    let currentSets = [];
+
     function newSet() {
       // Copy the previous set's values so repeated sets are quick to enter
       const last = currentSets[currentSets.length - 1];
       return last ? { ...last } : { weight_amount: null, weight_unit: 'kg', reps: null, duration_sec: null };
     }
 
-    let currentSets = [newSet()];
+    currentSets.push(newSet());
 
     document.getElementById('exercise-date').value = todayStr();
     document.getElementById('add-set').addEventListener('click', () => {
@@ -395,8 +397,8 @@
       showToast('Exercise saved!');
       document.getElementById('exercise-name').value = '';
       document.getElementById('exercise-notes').value = '';
-      currentSets = [];  // empty first so newSet() starts blank instead of copying
-      currentSets = [newSet()];
+      currentSets = [];
+      currentSets.push(newSet());
       renderSets();
       loadExercises();
     });
